@@ -1,35 +1,47 @@
 pipeline {
-    agent any
 
-    environment {
-        IMAGE_NAME = "jenkins-demo"
-        IMAGE_TAG = "latest"
-    }
+    agent any
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Build') {
             steps {
-                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+                echo 'Building application...'
+                sh 'docker build -t myapp:${BUILD_NUMBER} .'
             }
         }
 
         stage('Test') {
             steps {
-                sh 'docker images ${IMAGE_NAME}:${IMAGE_TAG}'
-                echo 'Basic automated test completed successfully'
+                echo 'Testing application...'
+                sh 'docker images myapp:${BUILD_NUMBER}'
             }
         }
 
-        stage('Package') {
+        stage('Docker Image') {
             steps {
-                sh 'docker save ${IMAGE_NAME}:${IMAGE_TAG} -o ${IMAGE_NAME}.tar'
+                echo 'Docker image created successfully'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh '''
+                    docker stop myapp || true
+                    docker rm myapp || true
+
+                    docker run -d \
+                    --name myapp \
+                    -p 8080:80 \
+                    myapp:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Verify') {
+            steps {
+                sh 'docker ps'
+                sh 'curl -I http://localhost:8080'
             }
         }
     }
